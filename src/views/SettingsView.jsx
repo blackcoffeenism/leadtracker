@@ -59,7 +59,7 @@ export const SettingsView = () => {
   };
 
   return (
-    <main className="flex-grow px-margin-mobile pt-lg pb-32 max-w-2xl mx-auto w-full animate-in fade-in duration-200">
+    <main className="flex-grow px-4 sm:px-6 pt-20 md:pt-28 pb-28 sm:pb-32 max-w-2xl mx-auto w-full animate-in fade-in duration-200">
       {/* Profile Card */}
       <section className="mb-lg">
         <div className="bg-surface-container-lowest dark:bg-[#1e2225] rounded-xl border border-surface-variant dark:border-white/10 p-lg flex flex-col items-center text-center shadow-[0_4px_12px_rgba(0,0,0,0.04)]">

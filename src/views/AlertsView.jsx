@@ -9,7 +9,7 @@ export const AlertsView = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <main className="pt-20 md:pt-28 px-margin-mobile max-w-4xl mx-auto flex flex-col gap-lg pb-32 animate-in fade-in duration-200">
+    <main className="pt-20 md:pt-28 px-4 sm:px-6 max-w-4xl mx-auto flex flex-col gap-md sm:gap-lg pb-28 sm:pb-32 animate-in fade-in duration-200">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface dark:text-inverse-on-surface font-bold">

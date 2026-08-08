@@ -32,7 +32,7 @@ export const AddClientView = () => {
   };
 
   return (
-    <main className="pt-20 md:pt-28 px-margin-mobile max-w-2xl mx-auto space-y-lg pb-32 animate-in fade-in duration-200">
+    <main className="pt-20 md:pt-28 px-4 sm:px-6 max-w-2xl mx-auto space-y-md sm:space-y-lg pb-28 sm:pb-32 animate-in fade-in duration-200">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface dark:text-inverse-on-surface font-bold">

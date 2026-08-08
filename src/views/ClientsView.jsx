@@ -56,7 +56,7 @@ export const ClientsView = () => {
   };
 
   return (
-    <main className="pt-20 md:pt-28 px-margin-mobile max-w-5xl mx-auto flex flex-col gap-lg pb-32 animate-in fade-in duration-200">
+    <main className="pt-20 md:pt-28 px-4 sm:px-6 max-w-5xl mx-auto flex flex-col gap-md sm:gap-lg pb-28 sm:pb-32 animate-in fade-in duration-200">
       {/* Title & Top Action */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>

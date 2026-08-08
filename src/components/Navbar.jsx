@@ -19,8 +19,8 @@ export const Navbar = () => {
   return (
     <>
       {/* Mobile Top AppBar */}
-      <header className="bg-surface dark:bg-[#191c1e] border-b border-transparent dark:border-white/10 shadow-sm docked full-width top-0 z-50 fixed w-full md:hidden h-16 transition-colors duration-200">
-        <div className="flex justify-between items-center px-margin-mobile h-full w-full">
+      <header className="bg-surface/90 dark:bg-[#191c1e]/90 backdrop-blur-md border-b border-surface-variant/30 dark:border-white/10 shadow-sm top-0 z-50 fixed w-full md:hidden h-16 transition-colors duration-200">
+        <div className="flex justify-between items-center px-4 h-full w-full">
           {isSubPage ? (
             <button 
               onClick={() => setActiveTab('clients')}
@@ -31,15 +31,11 @@ export const Navbar = () => {
             </button>
           ) : (
             <div 
-              onClick={() => setActiveTab('settings')}
-              className="flex items-center gap-sm cursor-pointer"
+              onClick={() => setActiveTab('dashboard')}
+              className="flex items-center gap-2 cursor-pointer"
             >
-              <img 
-                src={user.avatar} 
-                alt={user.name}
-                className="w-8 h-8 rounded-full object-cover shadow-sm ring-1 ring-primary/20"
-              />
-              <h1 className="font-headline-md text-headline-sm font-bold text-primary dark:text-primary-fixed">
+              <img src="/logo.png" alt="LeadFlow CRM Logo" className="w-8 h-8 object-contain drop-shadow-sm" />
+              <h1 className="font-headline-md text-base font-bold text-primary dark:text-primary-fixed">
                 LeadFlow CRM
               </h1>
             </div>

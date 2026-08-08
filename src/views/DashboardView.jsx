@@ -9,9 +9,9 @@ export const DashboardView = () => {
   const closedDeals = clients.filter(c => c.status === 'Closed Deal');
 
   return (
-    <main className="pt-20 md:pt-28 px-margin-mobile max-w-5xl mx-auto flex flex-col gap-lg pb-32 animate-in fade-in duration-200">
+    <main className="pt-20 md:pt-28 px-4 sm:px-6 max-w-5xl mx-auto flex flex-col gap-md sm:gap-lg pb-28 sm:pb-32 animate-in fade-in duration-200">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-primary/90 to-secondary p-lg rounded-2xl text-on-primary shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-gradient-to-r from-primary/90 to-secondary p-4 sm:p-lg rounded-2xl text-on-primary shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-2 text-primary-fixed text-xs uppercase tracking-wider font-bold mb-1">
             <span className="material-symbols-outlined text-sm">waving_hand</span> Welcome Back
