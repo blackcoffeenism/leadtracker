@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? "http://localhost:5050" : window.location.origin);
+
 const CRMContext = createContext();
 
 const INITIAL_USER = {
@@ -213,7 +215,7 @@ export const CRMProvider = ({ children }) => {
     const targetUrl = customSheetUrl || "https://docs.google.com/spreadsheets/d/1qTmp6AdRoqdOxYS4LwTb1zg9T1gRapDCyqfU5i42ZFY/edit?usp=sharing";
 
     try {
-      const res = await fetch("http://localhost:5050/api/sheets/sync", {
+      const res = await fetch(`${BACKEND_URL}/api/sheets/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetUrl: targetUrl, userEmail: user?.email })
@@ -273,7 +275,7 @@ export const CRMProvider = ({ children }) => {
 
     // Async sync to Express backend
     try {
-      await fetch("http://localhost:5050/api/clients", {
+      await fetch(`${BACKEND_URL}/api/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newClient)
@@ -343,7 +345,7 @@ export const CRMProvider = ({ children }) => {
 
     // Async sync to Express backend
     try {
-      await fetch(`http://localhost:5050/api/clients/${clientId}/notes`, {
+      await fetch(`${BACKEND_URL}/api/clients/${clientId}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note: noteText })

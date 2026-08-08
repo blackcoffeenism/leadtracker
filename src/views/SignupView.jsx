@@ -3,7 +3,7 @@ import { useCRM } from '../context/CRMContext';
 import { InfoModal } from '../components/InfoModal';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "923401436308-7slk60pvog0sg8mh0um5c21mov1kempd.apps.googleusercontent.com";
-const BACKEND_URL = "http://localhost:5050";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? "http://localhost:5050" : window.location.origin);
 
 export const SignupView = () => {
   const { loginWithUser, setActiveTab } = useCRM();

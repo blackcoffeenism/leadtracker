@@ -4,6 +4,8 @@ import { EditProfileModal } from '../components/EditProfileModal';
 import { NotificationPreferencesModal } from '../components/NotificationPreferencesModal';
 import { InfoModal } from '../components/InfoModal';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? "http://localhost:5050" : window.location.origin);
+
 export const SettingsView = () => {
   const { user, isDarkMode, toggleDarkMode, logout } = useCRM();
 
@@ -18,14 +20,14 @@ export const SettingsView = () => {
 
   // Load dynamic accounts & Apps Script URL from backend API
   useEffect(() => {
-    fetch("http://localhost:5050/api/settings/share-accounts")
+    fetch(`${BACKEND_URL}/api/settings/share-accounts`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.accounts) setAllowedAccounts(data.accounts);
       })
       .catch(err => console.warn("Share list load warning:", err));
 
-    fetch("http://localhost:5050/api/settings/apps-script")
+    fetch(`${BACKEND_URL}/api/settings/apps-script`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.appsScriptUrl) setAppsScriptUrl(data.appsScriptUrl);
@@ -36,7 +38,7 @@ export const SettingsView = () => {
   const handleSaveAppsScriptUrl = (e) => {
     e.preventDefault();
     setAppsScriptMsg('');
-    fetch("http://localhost:5050/api/settings/apps-script", {
+    fetch(`${BACKEND_URL}/api/settings/apps-script`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: appsScriptUrl })

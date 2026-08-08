@@ -613,10 +613,14 @@ app.post('/api/sheets/sync', async (req, res) => {
   }
 });
 
-// Start Express Server
-app.listen(PORT, () => {
-  console.log(`=================================================`);
-  console.log(`  LeadFlow CRM Backend Server Running on Port ${PORT}  `);
-  console.log(`  Google OAuth API: http://localhost:${PORT}/api/auth/google `);
-  console.log(`=================================================`);
-});
+// Start Express Server locally or export for Vercel Serverless Function
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`=================================================`);
+    console.log(`  LeadFlow CRM Backend Server Running on Port ${PORT}  `);
+    console.log(`  Google OAuth API: http://localhost:${PORT}/api/auth/google `);
+    console.log(`=================================================`);
+  });
+}
+
+module.exports = app;
