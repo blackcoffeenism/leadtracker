@@ -5,10 +5,12 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (window.location.hostnam
 const CRMContext = createContext();
 
 const INITIAL_USER = {
-  name: "Gerald Smith",
-  email: "gerald.smith@example.com",
-  role: "VP of Business Development",
-  avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuCGBhs0HsHT1AYlPjJ493GkCVwowslTC4pTTZrXb-ADu-V-TD1uyhnnVTx5HQewVO00tjv5W827r9LBMgL7Tz7KM8Jqu9nG6Bi50Qg8gPcjdduPgp55bnYpNUOKxoxXmyeSVyuVKDcDUTqN_95EXpx4Tx9NPPUXQy6xYuYfTeY2zSNiGV_CF6t54FZnFzbjhbWATeFOCXM9q9NTIhNElD3zaX1b_OJy1Rk_RNWcrSNIlMFahTF73DMz"
+  id: null,
+  name: "",
+  email: "",
+  picture: null,
+  avatar: null,
+  role: "Lead Specialist"
 };
 
 const INITIAL_CLIENTS = [];
@@ -165,14 +167,27 @@ export const CRMProvider = ({ children }) => {
     }
   }, [user]);
 
-  const loginWithUser = (userData) => {
+  const loginWithUser = (userData, token) => {
     setUser(userData);
     setIsAuthenticated(true);
+    try {
+      if (token) localStorage.setItem('leadflow_token', token);
+      localStorage.setItem('leadflow_user', JSON.stringify(userData));
+      localStorage.setItem('leadflow_auth', JSON.stringify(true));
+    } catch (e) {
+      console.warn("Unable to save user session:", e);
+    }
     setActiveTab('dashboard');
   };
 
   const logout = () => {
     setIsAuthenticated(false);
+    setUser(INITIAL_USER);
+    try {
+      localStorage.removeItem('leadflow_auth');
+      localStorage.removeItem('leadflow_user');
+      localStorage.removeItem('leadflow_token');
+    } catch (e) {}
     setActiveTab('signup');
   };
 
@@ -208,17 +223,30 @@ export const CRMProvider = ({ children }) => {
 
   const [isSyncingSheet, setIsSyncingSheet] = useState(false);
   const [sheetSyncStatus, setSheetSyncStatus] = useState(null);
+  const [activeProgram, setActiveProgram] = useState(() => {
+    try {
+      return localStorage.getItem('leadflow_program') || 'Program 1';
+    } catch (e) {
+      return 'Program 1';
+    }
+  });
 
-  const syncGoogleSheet = async (customSheetUrl) => {
+  const syncGoogleSheet = async (customSheetUrl, programOverride) => {
     setIsSyncingSheet(true);
     setSheetSyncStatus(null);
     const targetUrl = customSheetUrl || "https://docs.google.com/spreadsheets/d/1qTmp6AdRoqdOxYS4LwTb1zg9T1gRapDCyqfU5i42ZFY/edit?usp=sharing";
+    const program = programOverride || activeProgram || 'Program 1';
 
     try {
       const res = await fetch(`${BACKEND_URL}/api/sheets/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetUrl: targetUrl, userEmail: user?.email })
+        body: JSON.stringify({ 
+          sheetUrl: targetUrl, 
+          userEmail: user?.email, 
+          userName: user?.name, 
+          program 
+        })
       });
 
       const data = await res.json();
@@ -235,11 +263,21 @@ export const CRMProvider = ({ children }) => {
       console.warn("Backend sheet sync error:", err);
       setSheetSyncStatus({ 
         type: 'info', 
-        message: "Google Sheet link is configured. (Note: To load live data automatically, click 'File > Share > Publish to Web' or set permission to 'Anyone with link can view' in Google Sheets)." 
+        message: "Google Sheet link is configured. (Note: To load live data automatically, click 'File > Share > Publish to Web' or set permission to 'Anyone with link can view' in Google Sheets)."
       });
     } finally {
       setIsSyncingSheet(false);
     }
+  };
+
+  const switchProgram = (programName) => {
+    if (programName === activeProgram) return;
+    setActiveProgram(programName);
+    try {
+      localStorage.setItem('leadflow_program', programName);
+    } catch (e) {}
+    // immediately re-sync with new program
+    syncGoogleSheet(undefined, programName);
   };
 
   const addClient = async (newClientData) => {
@@ -364,7 +402,15 @@ export const CRMProvider = ({ children }) => {
   };
 
   const updateUserProfile = (updatedFields) => {
-    setUser(prev => ({ ...prev, ...updatedFields }));
+    setUser(prev => {
+      const updated = { ...prev, ...updatedFields };
+      try {
+        localStorage.setItem('leadflow_user', JSON.stringify(updated));
+      } catch (e) {
+        console.warn("Unable to persist profile update:", e);
+      }
+      return updated;
+    });
   };
 
   return (
@@ -395,7 +441,9 @@ export const CRMProvider = ({ children }) => {
         setSearchQuery,
         syncGoogleSheet,
         isSyncingSheet,
-        sheetSyncStatus
+        sheetSyncStatus,
+        activeProgram,
+        switchProgram
       }}
     >
       {children}

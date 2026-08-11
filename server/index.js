@@ -181,8 +181,11 @@ async function checkGoogleSheetPermission(email) {
 // 1. Google OAuth Signup / Login (POST for API fetch)
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential, idToken, email } = req.body;
+    const { credential, idToken, email, name, picture, avatar, id } = req.body;
     const tokenToVerify = credential || idToken;
+
+    // Debug: log exactly what the client sent
+    console.log('[Google Auth] Received body:', { email, name, picture: picture ? picture.slice(0, 60) + '...' : null, avatar: avatar ? avatar.slice(0, 60) + '...' : null, id, hasCredential: !!tokenToVerify });
 
     let targetEmail = email;
     let payload = null;
@@ -215,18 +218,52 @@ app.post('/api/auth/google', async (req, res) => {
       });
     }
 
+    // Extract real Google account full name & profile picture avatar dynamically from Google OAuth
+    // Priority: ID token payload > request body > fallback
+    let userFullName = (payload?.name) || name || null;
+    if (!userFullName && (payload?.given_name || payload?.family_name)) {
+      userFullName = `${payload?.given_name || ''} ${payload?.family_name || ''}`.trim();
+    }
+    // Accept both `picture` and `avatar` from request body
+    const userPicture = payload?.picture || picture || avatar || null;
+    const userId = payload?.sub || id || null;
+    const resolvedName = userFullName || (normalizedEmail ? normalizedEmail.split('@')[0] : "User");
+
+    console.log('[Google Auth] Extracted profile:', { resolvedName, userPicture: userPicture ? userPicture.slice(0, 80) + '...' : null, userId });
+
+    // Helper for initials SVG fallback
+    const getInitialsAvatar = (fullName) => {
+      const parts = (fullName || 'User').trim().split(/\s+/).filter(Boolean);
+      const initials = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0].slice(0, 2).toUpperCase();
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="100%" height="100%" fill="#2563eb" rx="64"/><text x="50%" y="54%" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="700" fill="#ffffff" dominant-baseline="middle" text-anchor="middle">${initials}</text></svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    };
+
+    const finalPicture = userPicture || getInitialsAvatar(resolvedName);
+
     // Find or create user
     let user = usersStore.find(u => u.email.toLowerCase() === normalizedEmail);
     if (!user) {
       user = {
-        id: "u_" + Date.now(),
-        googleId: payload?.sub || ("google_" + Date.now()),
-        name: payload?.name || normalizedEmail.split('@')[0],
+        id: userId || ("g_" + Date.now()),
+        googleId: userId || ("google_" + Date.now()),
+        name: resolvedName,
         email: normalizedEmail,
-        role: "Lead Specialist",
-        avatar: payload?.picture || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"
+        picture: finalPicture,
+        avatar: finalPicture,
+        role: "Lead Specialist"
       };
       usersStore.push(user);
+    } else {
+      // Update existing user record dynamically with Google Account details
+      if (userFullName) user.name = userFullName;
+      // Always update picture with the latest value from Google
+      user.picture = finalPicture;
+      user.avatar = finalPicture;
+      if (userId) {
+        user.id = userId;
+        user.googleId = userId;
+      }
     }
 
     const token = jwt.sign(
@@ -235,7 +272,7 @@ app.post('/api/auth/google', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    console.log(`[Google Auth POST] Authenticated & Authorized via Google Apps Script / Sheet API: ${user.name} (${user.email})`);
+    console.log(`[Google Auth POST] Authenticated: ${user.name} (${user.email}), picture: ${user.picture ? user.picture.slice(0, 60) + '...' : 'none'}`);
 
     return res.json({
       success: true,
@@ -445,34 +482,53 @@ app.get('/api/notifications', (req, res) => {
   return res.json({ success: true, notifications: notificationsStore });
 });
 
-// 7. Google Sheets Sync Endpoint (Filtered by logged-in agent email)
+// 6b. Get Available Programs (Sheet Tabs)
+// Returns the list of program names the user can switch between.
+// You can expand this dynamically by querying the spreadsheet if needed.
+app.get('/api/programs', (req, res) => {
+  const programs = [
+    { id: 'Program 1', label: 'Program 1' },
+    { id: 'Program 2', label: 'Program 2' }
+  ];
+  return res.json({ success: true, programs });
+});
+
+// 7. Google Sheets Sync Endpoint (Filtered by logged-in agent email, supports program/sheet switching)
 app.post('/api/sheets/sync', async (req, res) => {
   try {
-    const { sheetUrl, userEmail } = req.body || {};
+    const { sheetUrl, userEmail, userName, program } = req.body || {};
     const targetUserEmail = userEmail ? userEmail.trim().toLowerCase() : "";
+    const targetUserName = userName ? userName.trim().toLowerCase() : "";
+    // program: "Program 1" or "Program 2" (sheet tab name)
+    const sheetName = program ? program.trim() : "Program 1";
+
+    // Matching helper: check if Agent column strictly matches full user email
+    const matchesUserAccount = (agentVal) => {
+      if (!agentVal || typeof agentVal !== 'string' || !agentVal.trim()) return false;
+      if (!targetUserEmail) return true;
+      return agentVal.trim().toLowerCase() === targetUserEmail;
+    };
 
     // 1. Primary Sync: Fetch live sheet data via Google Apps Script Web App API for logged in agent
     const activeWebUrl = await getProgram1WebUrl();
     if (activeWebUrl) {
       try {
-        const gasRes = await fetch(`${activeWebUrl}?action=getLeads&email=${encodeURIComponent(targetUserEmail)}`);
+        const gasUrl = `${activeWebUrl}?action=getLeads&email=${encodeURIComponent(targetUserEmail)}&name=${encodeURIComponent(targetUserName)}&sheet=${encodeURIComponent(sheetName)}`;
+        console.log(`[Google Apps Script Sync] Fetching ${sheetName} filtered for user account (${targetUserEmail || targetUserName})...`);
+        const gasRes = await fetch(gasUrl);
         if (gasRes.ok) {
           const gasData = await gasRes.json();
           if (gasData && Array.isArray(gasData.leads)) {
             let fetched = gasData.leads;
-            if (targetUserEmail) {
-              const prefix = targetUserEmail.split('@')[0];
-              fetched = fetched.filter(c => {
-                if (!c.agent) return false;
-                const ag = c.agent.trim().toLowerCase();
-                return ag === targetUserEmail || ag === prefix || ag.includes(prefix) || targetUserEmail.includes(ag);
-              });
+            if (targetUserEmail || targetUserName) {
+              fetched = fetched.filter(c => matchesUserAccount(c.agent));
             }
             clientsStore = fetched;
-            console.log(`[Google Apps Script Sync] Loaded ${clientsStore.length} real leads assigned to agent (${targetUserEmail || 'all'})!`);
+            console.log(`[Google Apps Script Sync] Loaded ${clientsStore.length} leads from '${sheetName}' filtered for Agent (${targetUserEmail || targetUserName})!`);
             return res.json({
               success: true,
-              message: `Successfully synced ${clientsStore.length} leads assigned to agent (${targetUserEmail || 'all'})!`,
+              message: `Successfully synced ${clientsStore.length} leads from "${sheetName}" filtered for your account!`,
+              program: sheetName,
               clients: clientsStore
             });
           }
@@ -489,7 +545,7 @@ app.post('/api/sheets/sync', async (req, res) => {
       if (match && match[1]) sheetId = match[1];
     }
 
-    const csvExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+    const csvExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
     const response = await fetch(csvExportUrl);
     
     if (!response.ok) {
@@ -598,9 +654,12 @@ app.post('/api/sheets/sync', async (req, res) => {
       });
     }
 
-    if (newClients.length > 0) {
-      clientsStore = newClients;
+    let filteredClients = newClients;
+    if (targetUserEmail || targetUserName) {
+      filteredClients = newClients.filter(c => matchesUserAccount(c.agent));
     }
+
+    clientsStore = filteredClients;
 
     return res.json({
       success: true,

@@ -1,6 +1,8 @@
 /**
  * Google Apps Script Web App API & Dropdown Automator for LeadFlow CRM / JAD Tracker
  * Spreadsheet ID: 1qTmp6AdRoqdOxYS4LwTb1zg9T1gRapDCyqfU5i42ZFY
+ * Supports multi-sheet switching via ?sheet=Program%201 or ?sheet=Program%202
+ * Filters leads strictly by matching logged-in user account (email/prefix/name) against Column G (Agent).
  */
 
 function doGet(e) {
@@ -26,12 +28,41 @@ function onChange(e) {
 }
 
 /**
- * Core function to automate 'Agent' column dropdown options with Google Account Emails
+ * Resolve the target sheet by name. Flexible case-insensitive and partial matching.
+ * @param {string} sheetName - e.g. "Program 1" or "Program 2"
  */
-function updateAgentDropdown() {
+function getTargetSheet(sheetName) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (sheetName && String(sheetName).trim() !== "") {
+    var target = String(sheetName).trim().toLowerCase();
+    var sheets = ss.getSheets();
+    
+    // 1. Exact match (case-insensitive & trimmed)
+    for (var i = 0; i < sheets.length; i++) {
+      if (sheets[i].getName().trim().toLowerCase() === target) {
+        return sheets[i];
+      }
+    }
+    
+    // 2. Substring match (e.g. "program 2" matching "Program 2 - Leads")
+    for (var j = 0; j < sheets.length; j++) {
+      var sName = sheets[j].getName().trim().toLowerCase();
+      if (sName.indexOf(target) !== -1 || target.indexOf(sName) !== -1) {
+        return sheets[j];
+      }
+    }
+  }
+  return ss.getSheets()[0] || ss.getActiveSheet();
+}
+
+/**
+ * Core function to automate 'Agent' column dropdown options with Google Account Emails
+ * @param {string} sheetName - optional sheet name to target
+ */
+function updateAgentDropdown(sheetName) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getActiveSheet();
+    var sheet = getTargetSheet(sheetName);
     var file = DriveApp.getFileById(ss.getId());
 
     var shareListEmails = [];
@@ -88,7 +119,7 @@ function updateAgentDropdown() {
     agentColumnRange.clearDataValidations();
     agentColumnRange.setDataValidation(rule);
 
-    Logger.log("Successfully Applied Agent Email Dropdown to Column " + targetColIdx + ": " + shareListEmails.join(", "));
+    Logger.log("Successfully Applied Agent Email Dropdown to Column " + targetColIdx + " on sheet '" + sheet.getName() + "': " + shareListEmails.join(", "));
     return { shareListEmails: shareListEmails };
 
   } catch (error) {
@@ -99,33 +130,38 @@ function updateAgentDropdown() {
 
 /**
  * Handle incoming API requests (Permission check, Leads sync, Add Lead, & Agent filtering)
+ * Supports optional ?sheet=Program%201 parameter for multi-sheet switching.
  */
 function handleRequest(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
     var action = (params.action || "checkPermission").trim();
     var targetEmail = (params.email || params.agent || "").trim().toLowerCase();
+    var targetName = (params.name || "").trim().toLowerCase();
+    var sheetName = (params.sheet || "").trim(); // e.g. "Program 1" or "Program 2"
 
     var postObj = {};
     if (e && e.postData && e.postData.contents) {
       try {
         postObj = JSON.parse(e.postData.contents);
+        if (postObj.sheet && !sheetName) sheetName = String(postObj.sheet).trim();
+        if (postObj.name && !targetName) targetName = String(postObj.name).trim().toLowerCase();
       } catch (jsonErr) {}
     }
 
     // 1. ADD NEW LEAD ACTION (Save Lead directly into Google Sheet row)
-    if (action === "addLead" || postObj.action === "addLead" || (postObj.name && postObj.name.trim() !== "")) {
+    if (action === "addLead" || postObj.action === "addLead" || (postObj.name && action !== "getLeads" && postObj.name.trim() !== "")) {
       var leadName = (params.name || postObj.name || "").trim();
       var leadMobile = (params.mobileNumber || params.phone || postObj.mobileNumber || postObj.phone || "").trim();
       var leadEmail = (params.email || postObj.email || "").trim();
       var leadLocation = (params.location || params.address || postObj.location || postObj.address || "").trim();
       var leadStatus = (params.status || postObj.status || "Warm Lead").trim();
       var leadRemarks = (params.remarks || params.notes || postObj.remarks || postObj.notes || "").trim();
-      var leadAgent = (params.agent || postObj.agent || targetEmail || "").trim();
+      var leadAgent = (params.agent || postObj.agent || targetEmail || targetName || "").trim();
+      var leadSheetName = (params.sheet || postObj.sheet || sheetName || "").trim();
 
-      if (leadName !== "") {
-        var ss = SpreadsheetApp.getActiveSpreadsheet();
-        var sheet = ss.getActiveSheet();
+      if (leadName !== "" && action !== "getLeads" && action !== "checkPermission") {
+        var sheet = getTargetSheet(leadSheetName);
 
         // Append 7-column row: [Name, Mobile Number, Email, Location, Lead Status, Remarks, Agent]
         sheet.appendRow([
@@ -138,11 +174,12 @@ function handleRequest(e) {
           leadAgent
         ]);
 
-        updateAgentDropdown();
+        updateAgentDropdown(leadSheetName);
 
         return ContentService.createTextOutput(JSON.stringify({
           status: "success",
-          message: "Lead successfully saved to Google Sheet!",
+          message: "Lead successfully saved to Google Sheet '" + (sheet.getName()) + "'!",
+          sheet: sheet.getName(),
           lead: {
             name: leadName,
             mobileNumber: leadMobile,
@@ -156,14 +193,14 @@ function handleRequest(e) {
       }
     }
 
-    var agentInfo = updateAgentDropdown();
+    var agentInfo = updateAgentDropdown(sheetName);
     var shareList = agentInfo.shareListEmails || [];
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var fileId = ss.getId();
 
-    // Read Sheet Rows (Name, Mobile Number, Email, Location, Lead Status, Remarks, Agent)
-    var sheet = ss.getActiveSheet();
+    // Read from the requested sheet (Program 1 or Program 2)
+    var sheet = getTargetSheet(sheetName);
+    var resolvedSheetName = sheet.getName();
     var data = sheet.getDataRange().getValues();
     var allLeads = [];
 
@@ -188,7 +225,8 @@ function handleRequest(e) {
         var row = data[i];
         if (!row || row.length === 0) continue;
 
-        var nameVal = row[nameIdx !== -1 ? nameIdx : 0];
+        var rawName = row[nameIdx !== -1 ? nameIdx : 0];
+        var nameVal = rawName && String(rawName).trim() !== "" ? String(rawName).trim() : (row[1] || row[2] || "");
         if (!nameVal || String(nameVal).trim() === "") continue;
 
         var mobileVal = row[mobileIdx !== -1 ? mobileIdx : 1] || "";
@@ -210,7 +248,7 @@ function handleRequest(e) {
           remarks: String(remarksVal).trim(),
           notes: String(remarksVal).trim(),
           agent: String(agentVal).trim(),
-          source: "Google Sheet",
+          source: resolvedSheetName,
           assignedDate: "Synced",
           dealValue: "$0"
         });
@@ -224,23 +262,26 @@ function handleRequest(e) {
 
     var isAllowed = false;
     if (targetEmail) {
-      isAllowed = shareList.indexOf(targetEmail) !== -1;
+      isAllowed = shareList.length === 0 || shareList.indexOf(targetEmail) !== -1;
+    } else {
+      isAllowed = true;
     }
 
-    // Filter leads associated with logged-in targetEmail
+    // Filter leads strictly by full email matching Agent column
     var userLeads = allLeads;
-    if (targetEmail) {
-      var usernamePrefix = targetEmail.split("@")[0].toLowerCase();
+    if (targetEmail && allLeads.length > 0) {
+      var emailLower = targetEmail.trim().toLowerCase();
       userLeads = allLeads.filter(function(lead) {
-        if (!lead.agent) return false;
-        var ag = lead.agent.toLowerCase().trim();
-        return ag === targetEmail || ag === usernamePrefix || ag.indexOf(usernamePrefix) !== -1 || targetEmail.indexOf(ag) !== -1;
+        if (!lead || !lead.agent || String(lead.agent).trim() === "") return false;
+        return String(lead.agent).trim().toLowerCase() === emailLower;
       });
     }
 
     var responseObj = {
       status: "success",
       targetEmail: targetEmail,
+      targetName: targetName,
+      sheet: resolvedSheetName,
       isAllowed: isAllowed,
       shareList: shareList,
       authorizedAgents: shareList,

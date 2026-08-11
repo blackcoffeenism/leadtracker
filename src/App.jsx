@@ -41,7 +41,7 @@ const AppContainer = () => {
   const showNav = isAuthenticated && activeTab !== 'signup';
 
   return (
-    <div className="min-h-screen bg-background dark:bg-[#111416] text-on-background dark:text-gray-100 flex flex-col font-body-md transition-colors duration-200">
+    <div className="min-h-screen w-full overflow-x-hidden bg-background dark:bg-[#111416] text-on-background dark:text-gray-100 flex flex-col font-body-md transition-colors duration-200">
       {showNav && <Navbar />}
       <MainContent />
       {showNav && <GlobalSearchModal />}

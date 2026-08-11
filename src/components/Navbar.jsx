@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCRM } from '../context/CRMContext';
+import { getInitialsAvatar } from '../utils/avatar';
 
 export const Navbar = () => {
   const { 
@@ -12,6 +13,7 @@ export const Navbar = () => {
     setSelectedClientId
   } = useCRM();
 
+  const userPhoto = user.picture || user.avatar || getInitialsAvatar(user.name);
   const unreadCount = notifications.filter(n => n.unread).length;
 
   const isSubPage = activeTab === 'client_details';
@@ -55,12 +57,29 @@ export const Navbar = () => {
             >
               <span className="material-symbols-outlined">search</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('settings')}
+              className="p-1 rounded-full hover:bg-surface-container-high dark:hover:bg-white/10 transition-colors shrink-0"
+              title="View Profile Settings"
+            >
+              <img 
+                src={userPhoto} 
+                alt={user.name}
+                referrerPolicy="no-referrer"
+                className="w-8 h-8 rounded-full object-cover border border-primary-container shadow-xs bg-primary-container"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = getInitialsAvatar(user.name);
+                }}
+              />
+            </button>
           </div>
         </div>
       </header>
 
       {/* Desktop Web Top Nav (Hidden on Mobile) */}
-      <header className="hidden md:flex fixed top-0 left-0 w-full z-50 justify-between items-center px-8 h-20 bg-surface dark:bg-[#191c1e] shadow-sm border-b border-surface-variant/40 dark:border-white/10 transition-colors duration-200">
+      <header className="hidden md:flex fixed top-0 left-0 w-full z-50 justify-between items-center px-4 lg:px-8 h-20 bg-surface dark:bg-[#191c1e] shadow-sm border-b border-surface-variant/40 dark:border-white/10 transition-colors duration-200">
         <div className="flex items-center gap-6">
           <div 
             onClick={() => setActiveTab('dashboard')}
@@ -138,22 +157,28 @@ export const Navbar = () => {
             className="flex items-center gap-2 bg-surface-container-low dark:bg-white/10 px-3 py-1.5 rounded-full text-on-surface-variant dark:text-gray-200 text-sm hover:bg-surface-container-high transition-colors"
           >
             <span className="material-symbols-outlined text-xl">search</span>
-            <span>Search leads...</span>
-            <kbd className="hidden lg:inline-block px-2 py-0.5 text-[10px] font-semibold bg-surface-variant dark:bg-white/20 text-outline dark:text-gray-300 rounded shadow-inner">⌘K</kbd>
+            <span className="hidden lg:inline">Search leads...</span>
+            <kbd className="hidden xl:inline-block px-2 py-0.5 text-[10px] font-semibold bg-surface-variant dark:bg-white/20 text-outline dark:text-gray-300 rounded shadow-inner">⌘K</kbd>
           </button>
 
           <div 
             onClick={() => setActiveTab('settings')}
-            className="flex items-center gap-3 cursor-pointer p-1 rounded-full hover:bg-surface-container dark:hover:bg-white/5 transition-colors"
+            className="flex items-center gap-3 cursor-pointer p-1.5 px-3 rounded-full hover:bg-surface-container-high dark:hover:bg-white/10 transition-colors border border-surface-variant/40 dark:border-white/10"
+            title="View Settings & Profile"
           >
             <img 
-              src={user.avatar} 
+              src={userPhoto} 
               alt={user.name}
-              className="w-10 h-10 rounded-full object-cover border-2 border-primary-container shadow-sm"
+              referrerPolicy="no-referrer"
+              className="w-9 h-9 rounded-full object-cover border-2 border-primary-container shadow-sm shrink-0 bg-primary-container"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = getInitialsAvatar(user.name);
+              }}
             />
-            <div className="hidden xl:block text-left pr-2">
-              <div className="font-label-lg text-sm text-on-surface dark:text-white font-semibold">{user.name}</div>
-              <div className="text-xs text-on-surface-variant dark:text-gray-400">{user.role}</div>
+            <div className="hidden xl:block text-left pr-1">
+              <div className="font-label-lg text-sm text-on-surface dark:text-white font-bold leading-tight">{user.name}</div>
+              <div className="text-[11px] text-on-surface-variant dark:text-gray-400 font-medium truncate max-w-[140px]">{user.email}</div>
             </div>
           </div>
         </div>
@@ -161,74 +186,116 @@ export const Navbar = () => {
 
       {/* Mobile Bottom Navigation Bar */}
       {!isSubPage && (
-        <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 pb-safe bg-surface-container dark:bg-[#191c1e] shadow-[0_-4px_12px_rgba(0,0,0,0.04)] dark:border-t dark:border-white/10 rounded-t-xl md:hidden transition-colors">
-          {/* Dashboard */}
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center justify-center px-4 py-1.5 transition-all duration-150 ${
-              activeTab === 'dashboard'
-                ? 'bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-full font-semibold'
-                : 'text-on-surface-variant dark:text-outline hover:opacity-80 active:scale-95'
-            }`}
-          >
-            <span className={`material-symbols-outlined ${activeTab === 'dashboard' ? 'filled' : ''}`}>dashboard</span>
-            <span className="font-label-md text-label-md mt-0.5 text-[11px]">Dashboard</span>
-          </button>
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface/95 dark:bg-[#191c1e]/95 backdrop-blur-lg border-t border-surface-variant/30 dark:border-white/10 shadow-lg md:hidden transition-colors pb-safe">
+          <div className="grid grid-cols-5 h-16 items-center px-1 max-w-md mx-auto">
+            {/* Dashboard */}
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className="flex flex-col items-center justify-center h-full w-full py-1 text-center group cursor-pointer"
+            >
+              <div className={`w-12 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
+                activeTab === 'dashboard'
+                  ? 'bg-primary/15 dark:bg-primary/25 text-primary dark:text-primary-fixed shadow-xs'
+                  : 'text-on-surface-variant dark:text-gray-400 group-hover:text-on-surface'
+              }`}>
+                <span className={`material-symbols-outlined text-[20px] transition-transform ${activeTab === 'dashboard' ? 'filled scale-105' : ''}`}>
+                  dashboard
+                </span>
+              </div>
+              <span className={`text-[10px] tracking-tight mt-0.5 transition-colors ${
+                activeTab === 'dashboard' ? 'font-bold text-primary dark:text-primary-fixed' : 'font-medium text-on-surface-variant dark:text-gray-400'
+              }`}>
+                Dashboard
+              </span>
+            </button>
 
-          {/* Clients */}
-          <button
-            onClick={() => setActiveTab('clients')}
-            className={`flex flex-col items-center justify-center px-4 py-1.5 transition-all duration-150 ${
-              activeTab === 'clients'
-                ? 'bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-full font-semibold'
-                : 'text-on-surface-variant dark:text-outline hover:opacity-80 active:scale-95'
-            }`}
-          >
-            <span className={`material-symbols-outlined ${activeTab === 'clients' ? 'filled' : ''}`}>group</span>
-            <span className="font-label-md text-label-md mt-0.5 text-[11px]">Clients</span>
-          </button>
+            {/* Clients */}
+            <button
+              onClick={() => setActiveTab('clients')}
+              className="flex flex-col items-center justify-center h-full w-full py-1 text-center group cursor-pointer"
+            >
+              <div className={`w-12 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
+                activeTab === 'clients'
+                  ? 'bg-primary/15 dark:bg-primary/25 text-primary dark:text-primary-fixed shadow-xs'
+                  : 'text-on-surface-variant dark:text-gray-400 group-hover:text-on-surface'
+              }`}>
+                <span className={`material-symbols-outlined text-[20px] transition-transform ${activeTab === 'clients' ? 'filled scale-105' : ''}`}>
+                  group
+                </span>
+              </div>
+              <span className={`text-[10px] tracking-tight mt-0.5 transition-colors ${
+                activeTab === 'clients' ? 'font-bold text-primary dark:text-primary-fixed' : 'font-medium text-on-surface-variant dark:text-gray-400'
+              }`}>
+                Clients
+              </span>
+            </button>
 
-          {/* Add */}
-          <button
-            onClick={() => setActiveTab('add')}
-            className={`flex flex-col items-center justify-center px-4 py-1.5 transition-all duration-150 ${
-              activeTab === 'add'
-                ? 'bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-full font-semibold'
-                : 'text-on-surface-variant dark:text-outline hover:opacity-80 active:scale-95'
-            }`}
-          >
-            <span className={`material-symbols-outlined ${activeTab === 'add' ? 'filled' : ''}`}>add</span>
-            <span className="font-label-md text-label-md mt-0.5 text-[11px]">Add</span>
-          </button>
+            {/* Add */}
+            <button
+              onClick={() => setActiveTab('add')}
+              className="flex flex-col items-center justify-center h-full w-full py-1 text-center group cursor-pointer"
+            >
+              <div className={`w-12 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
+                activeTab === 'add'
+                  ? 'bg-primary/15 dark:bg-primary/25 text-primary dark:text-primary-fixed shadow-xs'
+                  : 'text-on-surface-variant dark:text-gray-400 group-hover:text-on-surface'
+              }`}>
+                <span className={`material-symbols-outlined text-[20px] transition-transform ${activeTab === 'add' ? 'filled scale-105' : ''}`}>
+                  add_circle
+                </span>
+              </div>
+              <span className={`text-[10px] tracking-tight mt-0.5 transition-colors ${
+                activeTab === 'add' ? 'font-bold text-primary dark:text-primary-fixed' : 'font-medium text-on-surface-variant dark:text-gray-400'
+              }`}>
+                Add Lead
+              </span>
+            </button>
 
-          {/* Alerts */}
-          <button
-            onClick={() => setActiveTab('alerts')}
-            className={`flex flex-col items-center justify-center px-4 py-1.5 transition-all duration-150 relative ${
-              activeTab === 'alerts'
-                ? 'bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-full font-semibold'
-                : 'text-on-surface-variant dark:text-outline hover:opacity-80 active:scale-95'
-            }`}
-          >
-            <span className={`material-symbols-outlined ${activeTab === 'alerts' ? 'filled' : ''}`}>notifications</span>
-            {unreadCount > 0 && activeTab !== 'alerts' && (
-              <span className="absolute top-1 right-3 w-2 h-2 bg-error rounded-full ring-2 ring-surface"></span>
-            )}
-            <span className="font-label-md text-label-md mt-0.5 text-[11px]">Alerts</span>
-          </button>
+            {/* Alerts */}
+            <button
+              onClick={() => setActiveTab('alerts')}
+              className="flex flex-col items-center justify-center h-full w-full py-1 text-center group cursor-pointer"
+            >
+              <div className={`relative w-12 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
+                activeTab === 'alerts'
+                  ? 'bg-primary/15 dark:bg-primary/25 text-primary dark:text-primary-fixed shadow-xs'
+                  : 'text-on-surface-variant dark:text-gray-400 group-hover:text-on-surface'
+              }`}>
+                <span className={`material-symbols-outlined text-[20px] transition-transform ${activeTab === 'alerts' ? 'filled scale-105' : ''}`}>
+                  notifications
+                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-surface dark:ring-[#191c1e]"></span>
+                )}
+              </div>
+              <span className={`text-[10px] tracking-tight mt-0.5 transition-colors ${
+                activeTab === 'alerts' ? 'font-bold text-primary dark:text-primary-fixed' : 'font-medium text-on-surface-variant dark:text-gray-400'
+              }`}>
+                Alerts
+              </span>
+            </button>
 
-          {/* Settings */}
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center justify-center px-4 py-1.5 transition-all duration-150 ${
-              activeTab === 'settings'
-                ? 'bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-full font-semibold'
-                : 'text-on-surface-variant dark:text-outline hover:opacity-80 active:scale-95'
-            }`}
-          >
-            <span className={`material-symbols-outlined ${activeTab === 'settings' ? 'filled' : ''}`}>settings</span>
-            <span className="font-label-md text-label-md mt-0.5 text-[11px]">Settings</span>
-          </button>
+            {/* Settings */}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className="flex flex-col items-center justify-center h-full w-full py-1 text-center group cursor-pointer"
+            >
+              <div className={`w-12 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
+                activeTab === 'settings'
+                  ? 'bg-primary/15 dark:bg-primary/25 text-primary dark:text-primary-fixed shadow-xs'
+                  : 'text-on-surface-variant dark:text-gray-400 group-hover:text-on-surface'
+              }`}>
+                <span className={`material-symbols-outlined text-[20px] transition-transform ${activeTab === 'settings' ? 'filled scale-105' : ''}`}>
+                  settings
+                </span>
+              </div>
+              <span className={`text-[10px] tracking-tight mt-0.5 transition-colors ${
+                activeTab === 'settings' ? 'font-bold text-primary dark:text-primary-fixed' : 'font-medium text-on-surface-variant dark:text-gray-400'
+              }`}>
+                Settings
+              </span>
+            </button>
+          </div>
         </nav>
       )}
     </>

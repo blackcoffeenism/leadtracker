@@ -1,9 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useCRM } from '../context/CRMContext';
 import { InfoModal } from '../components/InfoModal';
+import { getInitialsAvatar } from '../utils/avatar';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "923401436308-7slk60pvog0sg8mh0um5c21mov1kempd.apps.googleusercontent.com";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? "http://localhost:5050" : window.location.origin);
+
+// Helper: Extract JSON payload from Google ID Token JWT
+const parseGoogleIdToken = (idToken) => {
+  if (!idToken || typeof idToken !== 'string') return null;
+  try {
+    const parts = idToken.split('.');
+    if (parts.length !== 3) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+};
 
 export const SignupView = () => {
   const { loginWithUser, setActiveTab } = useCRM();
@@ -13,15 +31,40 @@ export const SignupView = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [manualEmail, setManualEmail] = useState('');
+  const [manualName, setManualName] = useState('');
 
   // Handle Google OAuth Credential or Email verification
-  const handleGoogleCredentialResponse = async (credentialToken, directEmail) => {
+  const handleGoogleCredentialResponse = async (credentialToken, directEmail, googleUserInfo = null) => {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const payloadBody = directEmail 
-        ? { email: directEmail } 
-        : { credential: credentialToken };
+      let extractedName = googleUserInfo?.name;
+      let extractedPicture = googleUserInfo?.picture || googleUserInfo?.avatar;
+      let extractedEmail = directEmail || googleUserInfo?.email;
+      let extractedId = googleUserInfo?.sub || googleUserInfo?.id;
+
+      if (credentialToken) {
+        const decoded = parseGoogleIdToken(credentialToken);
+        if (decoded) {
+          if (decoded.name) extractedName = decoded.name;
+          if (decoded.picture) extractedPicture = decoded.picture;
+          if (decoded.email) extractedEmail = decoded.email;
+          if (decoded.sub) extractedId = decoded.sub;
+        }
+      }
+
+      // Debug: log exactly what Google returned
+      console.log("[Google Auth] Raw Google profile received:", googleUserInfo);
+      console.log("[Google Auth] Extracted - name:", extractedName, "| email:", extractedEmail, "| picture:", extractedPicture, "| id:", extractedId);
+
+      const payloadBody = {
+        credential: credentialToken || undefined,
+        email: extractedEmail,
+        name: extractedName || manualName.trim() || undefined,
+        picture: extractedPicture,
+        avatar: extractedPicture,
+        id: extractedId
+      };
 
       const res = await fetch(`${BACKEND_URL}/api/auth/google`, {
         method: 'POST',
@@ -30,9 +73,34 @@ export const SignupView = () => {
       });
 
       const data = await res.json();
-      if (res.ok && data.success) {
+      console.log("[Google Auth] Server response data.user:", data.user);
+
+      if (res.ok && data.success && data.user) {
         setShowEmailModal(false);
-        loginWithUser(data.user, data.token);
+
+        // Build the authenticated user object from the direct Google profile data.
+        // The client-side values (from Google UserInfo API) are authoritative.
+        // Fall back to server data only if the client didn't receive them.
+        const resolvedName = extractedName || data.user.name || (extractedEmail ? extractedEmail.split('@')[0] : "User");
+        const resolvedPicture = extractedPicture || data.user.picture || data.user.avatar || getInitialsAvatar(resolvedName);
+        const resolvedEmail = extractedEmail || data.user.email;
+        const resolvedId = extractedId || data.user.id || ("g_" + Date.now());
+
+        const googleUser = {
+          id: resolvedId,
+          name: resolvedName,
+          email: resolvedEmail,
+          picture: resolvedPicture,
+          avatar: resolvedPicture,
+          role: data.user.role || "Lead Specialist"
+        };
+
+        console.log("[Google Auth] Final user object being stored:", googleUser);
+        console.log("[Google Auth] User name:", googleUser.name);
+        console.log("[Google Auth] User email:", googleUser.email);
+        console.log("[Google Auth] User picture:", googleUser.picture);
+
+        loginWithUser(googleUser, data.token);
         setActiveTab('dashboard');
       } else {
         setErrorMessage(data.error || "Access Denied: Your Google account is not listed in the Google Sheet share settings.");
@@ -61,7 +129,7 @@ export const SignupView = () => {
   const handleManualEmailSubmit = (e) => {
     e.preventDefault();
     if (!manualEmail.trim()) return;
-    handleGoogleCredentialResponse(null, manualEmail.trim());
+    handleGoogleCredentialResponse(null, manualEmail.trim(), { name: manualName.trim() });
   };
 
   // Triggers native Google Account Chooser popup
@@ -83,7 +151,7 @@ export const SignupView = () => {
                 });
                 const userInfo = await userInfoRes.json();
                 if (userInfo && userInfo.email) {
-                  handleGoogleCredentialResponse(null, userInfo.email);
+                  handleGoogleCredentialResponse(null, userInfo.email, userInfo);
                   return;
                 }
               } catch (err) {
@@ -120,9 +188,9 @@ export const SignupView = () => {
   };
 
   return (
-    <div className="bg-surface dark:bg-[#111416] text-on-surface dark:text-gray-100 min-h-screen flex flex-col items-center justify-center p-margin-mobile transition-colors duration-200">
+    <div className="bg-surface dark:bg-[#111416] text-on-surface dark:text-gray-100 min-h-screen flex flex-col items-center justify-center px-4 py-6 transition-colors duration-200">
       {/* Transactional Main Container */}
-      <main className="w-full max-w-md flex flex-col items-center flex-grow justify-center space-y-lg py-8 animate-in fade-in duration-300">
+      <main className="w-full max-w-md min-w-0 flex flex-col items-center flex-grow justify-center space-y-lg py-8 animate-in fade-in duration-300">
         
         {/* Header Section */}
         <header className="text-center flex flex-col items-center">
@@ -167,9 +235,9 @@ export const SignupView = () => {
         {/* Action Section */}
         <section className="w-full flex flex-col items-center space-y-md">
           {/* Security Badge */}
-          <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 rounded-full text-[11px] font-semibold">
-            <span className="material-symbols-outlined text-xs">shield_lock</span>
-            Access Restricted to Google Accounts on Share List
+          <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 rounded-full text-[11px] font-semibold text-center">
+            <span className="material-symbols-outlined text-xs shrink-0">shield_lock</span>
+            <span>Access Restricted to Google Accounts on Share List</span>
           </div>
 
           {/* Primary Continue with Google Button */}
@@ -226,6 +294,22 @@ export const SignupView = () => {
             </p>
 
             <form onSubmit={handleManualEmailSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-on-surface dark:text-gray-200 mb-1.5">
+                  Full Name (Optional)
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-lg">person</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Gerald De Lima"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-surface-container-lowest dark:bg-white/5 border border-surface-variant dark:border-white/10 rounded-xl text-sm outline-none focus:border-primary text-on-surface dark:text-white"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-on-surface dark:text-gray-200 mb-1.5">
                   Google Email Address *

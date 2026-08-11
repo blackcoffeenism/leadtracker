@@ -2,12 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   -webkit-tap-highlight-color: transparent;
   background-color: #f7f9fb;
   color: #191c1e;
   transition: background-color 0.2s ease, color 0.2s ease;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 html.dark body {

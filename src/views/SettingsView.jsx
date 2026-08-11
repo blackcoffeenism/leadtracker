@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useCRM } from '../context/CRMContext';
-import { EditProfileModal } from '../components/EditProfileModal';
 import { NotificationPreferencesModal } from '../components/NotificationPreferencesModal';
 import { InfoModal } from '../components/InfoModal';
+import { getInitialsAvatar } from '../utils/avatar';
+import { PromoBanner } from '../components/PromoBanner';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? "http://localhost:5050" : window.location.origin);
 
 export const SettingsView = () => {
   const { user, isDarkMode, toggleDarkMode, logout } = useCRM();
 
-  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const userPhoto = user.picture || user.avatar || getInitialsAvatar(user.name);
+
   const [isNotifPrefOpen, setIsNotifPrefOpen] = useState(false);
   const [infoModalType, setInfoModalType] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -59,23 +61,21 @@ export const SettingsView = () => {
   };
 
   return (
-    <main className="flex-grow px-4 sm:px-6 pt-20 md:pt-28 pb-28 sm:pb-32 max-w-2xl mx-auto w-full animate-in fade-in duration-200">
+    <main className="flex-grow px-4 sm:px-6 pt-20 md:pt-28 pb-28 sm:pb-32 max-w-2xl mx-auto w-full min-w-0 animate-in fade-in duration-200">
       {/* Profile Card */}
       <section className="mb-lg">
         <div className="bg-surface-container-lowest dark:bg-[#1e2225] rounded-xl border border-surface-variant dark:border-white/10 p-lg flex flex-col items-center text-center shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
-          <div className="w-24 h-24 mb-md relative">
+          <div className="w-24 h-24 mb-md">
             <img 
-              className="w-full h-full rounded-full object-cover shadow-sm ring-2 ring-primary/20" 
-              src={user.avatar} 
+              className="w-full h-full rounded-full object-cover shadow-sm ring-2 ring-primary/20 bg-primary-container" 
+              src={userPhoto} 
               alt={user.name} 
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = getInitialsAvatar(user.name);
+              }}
             />
-            <button 
-              onClick={() => setIsEditProfileOpen(true)}
-              className="absolute bottom-0 right-0 bg-primary-container text-on-primary rounded-full p-1.5 shadow-sm hover:opacity-90 transition-opacity"
-              title="Edit Profile"
-            >
-              <span className="material-symbols-outlined text-[16px]">edit</span>
-            </button>
           </div>
           <h2 className="font-headline-sm text-headline-sm text-on-surface dark:text-white mb-xs font-bold">{user.name}</h2>
           <p className="font-body-md text-body-md text-on-surface-variant dark:text-gray-400">{user.email}</p>
@@ -87,19 +87,7 @@ export const SettingsView = () => {
 
       {/* Settings List */}
       <section className="flex flex-col gap-sm">
-        {/* Profile */}
-        <button 
-          onClick={() => setIsEditProfileOpen(true)}
-          className="w-full flex items-center justify-between p-md bg-surface-container-lowest dark:bg-[#1e2225] rounded-lg border border-surface-variant dark:border-white/10 hover:bg-surface-container dark:hover:bg-white/5 transition-colors shadow-[0_4px_12px_rgba(0,0,0,0.04)] text-left"
-        >
-          <div className="flex items-center gap-md text-on-surface dark:text-gray-200">
-            <span className="material-symbols-outlined text-outline dark:text-gray-400">person</span>
-            <span className="font-label-lg text-label-lg font-medium">Profile</span>
-          </div>
-          <span className="material-symbols-outlined text-outline dark:text-gray-400">chevron_right</span>
-        </button>
-
-        {/* Dark Mode Toggle */}
+{/* Dark Mode Toggle */}
         <div className="flex items-center justify-between p-md bg-surface-container-lowest dark:bg-[#1e2225] rounded-lg border border-surface-variant dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
           <div className="flex items-center gap-md text-on-surface dark:text-gray-200">
             <span className="material-symbols-outlined text-outline dark:text-gray-400">dark_mode</span>
@@ -180,9 +168,12 @@ export const SettingsView = () => {
       </section>
 
       {/* App Version */}
-      <div className="text-center mt-lg mb-xl">
+      <div className="text-center mt-lg mb-md">
         <span className="font-body-md text-body-md text-outline">App Version 1.0</span>
       </div>
+
+      {/* Promo Banner */}
+      <PromoBanner className="mb-md" />
 
       {/* Logout Button */}
       <button 
@@ -194,11 +185,6 @@ export const SettingsView = () => {
       </button>
 
       {/* Modals */}
-      <EditProfileModal 
-        isOpen={isEditProfileOpen} 
-        onClose={() => setIsEditProfileOpen(false)} 
-      />
-      
       <NotificationPreferencesModal 
         isOpen={isNotifPrefOpen} 
         onClose={() => setIsNotifPrefOpen(false)} 

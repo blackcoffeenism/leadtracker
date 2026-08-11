@@ -8,7 +8,9 @@ export const ClientsView = () => {
     setActiveTab, 
     syncGoogleSheet, 
     isSyncingSheet, 
-    sheetSyncStatus 
+    sheetSyncStatus,
+    activeProgram,
+    switchProgram
   } = useCRM();
 
   const [activeFilter, setActiveFilter] = useState('All');
@@ -56,7 +58,7 @@ export const ClientsView = () => {
   };
 
   return (
-    <main className="pt-20 md:pt-28 px-4 sm:px-6 max-w-5xl mx-auto flex flex-col gap-md sm:gap-lg pb-28 sm:pb-32 animate-in fade-in duration-200">
+    <main className="pt-20 md:pt-28 px-4 sm:px-6 max-w-5xl mx-auto w-full min-w-0 flex flex-col gap-md sm:gap-lg pb-28 sm:pb-32 animate-in fade-in duration-200">
       {/* Title & Top Action */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -72,7 +74,25 @@ export const ClientsView = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Program Switcher */}
+          <div className="flex items-center bg-surface-container-lowest dark:bg-[#1e2225] border border-surface-variant dark:border-white/10 rounded-lg p-1 gap-1 shadow-sm">
+            <span className="material-symbols-outlined text-outline dark:text-gray-400 text-[16px] ml-1">layers</span>
+            {['Program 1', 'Program 2'].map(prog => (
+              <button
+                key={prog}
+                onClick={() => switchProgram(prog)}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-all duration-150 ${
+                  activeProgram === prog
+                    ? 'bg-primary-container text-on-primary shadow-sm'
+                    : 'text-on-surface-variant dark:text-gray-400 hover:bg-surface-container dark:hover:bg-white/10'
+                }`}
+              >
+                {prog}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={() => syncGoogleSheet(customSheetUrl)}
             disabled={isSyncingSheet}
@@ -228,7 +248,7 @@ export const ClientsView = () => {
                     <span className="flex items-center gap-1 text-outline dark:text-gray-400">
                       <span className="material-symbols-outlined text-xs">mail</span> Email:
                     </span>
-                    <span className="truncate max-w-[190px] font-medium text-on-surface dark:text-gray-200">{client.email || "—"}</span>
+                    <span className="truncate max-w-[150px] sm:max-w-[190px] font-medium text-on-surface dark:text-gray-200">{client.email || "—"}</span>
                   </div>
 
                   {/* Location */}

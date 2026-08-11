@@ -1,19 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCRM } from '../context/CRMContext';
+import { getInitialsAvatar } from '../utils/avatar';
 
 export const EditProfileModal = ({ isOpen, onClose }) => {
   const { user, updateUserProfile } = useCRM();
 
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
-  const [role, setRole] = useState(user.role);
-  const [avatar, setAvatar] = useState(user.avatar);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('');
+  const [avatar, setAvatar] = useState('');
+
+  // Re-sync form fields every time the modal opens or the user object changes
+  useEffect(() => {
+    if (isOpen) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setRole(user.role || '');
+      setAvatar(user.picture || user.avatar || getInitialsAvatar(user.name));
+    }
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateUserProfile({ name, email, role, avatar });
+    updateUserProfile({ name, email, role, avatar, picture: avatar });
     onClose();
   };
 
@@ -34,9 +45,14 @@ export const EditProfileModal = ({ isOpen, onClose }) => {
           <div className="flex justify-center mb-md">
             <div className="relative w-20 h-20">
               <img 
-                src={avatar} 
+                src={avatar || getInitialsAvatar(name)} 
                 alt="Profile"
-                className="w-full h-full rounded-full object-cover border-2 border-primary-container"
+                referrerPolicy="no-referrer"
+                className="w-full h-full rounded-full object-cover border-2 border-primary-container bg-primary-container"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = getInitialsAvatar(name);
+                }}
               />
               <button 
                 type="button"
